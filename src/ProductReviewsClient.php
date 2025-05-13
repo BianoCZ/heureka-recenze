@@ -1,281 +1,267 @@
 <?php
 
-namespace OndraKoupil\Heureka;
+declare(strict_types = 1);
+
+namespace Biano\Heureka;
+
+use DateTimeImmutable;
+use SimpleXMLElement;
+use function array_key_exists;
+use function array_keys;
+use function count;
+use function md5;
+use function preg_match;
+use function round;
 
 /**
  * Klient umožňující stahovat recenze jednotlivých produktů
+ *
+ * @extends \Biano\Heureka\BaseClient<\Biano\Heureka\ProductReview>
  */
-class ProductReviewsClient extends BaseClient {
+final class ProductReviewsClient extends BaseClient
+{
 
-	protected $idResolver;
+    /** @var (callable(\Biano\Heureka\ProductReview): (int|string|null))|null  */
+    protected $idResolver = null;
 
-	protected $saveSummary = false;
-	protected $saveGroupedReviews = false;
+    protected bool $saveSummary = false;
 
-	/**
-	 * @ignore
-	 */
-	function getNodeName() {
-		return "product";
-	}
+    protected bool $saveGroupedReviews = false;
 
-	/**
-	 * @param string $key Heuréka klíč (32 znaků) anebo celá adresa pro stahování importu
-	 * @param \DateTime $from Volitelně lze omezit, odkdy chceš recenze stáhnout. Max 6 měsíců zpátky. Funguje jen zadáš-li jako $key 32znakový klíč.
-	 */
-	function __construct($key = null, \DateTime $from = null) {
-		parent::__construct($key);
-		$this->setKey($key, $from);
-	}
+    /** @var array<string, int|string|null> */
+    protected array $idResolverCache = [];
 
-	/**
-	 *
-	 * @param string $key Heuréka klíč (32 znaků) anebo celá adresa pro stahování importu
-	 * @param \DateTime $from Volitelně lze omezit, odkdy chceš recenze stáhnout. Max 6 měsíců zpátky. Funguje jen zadáš-li jako $key 32znakový klíč.
-	 */
-	public function setKey($key, \DateTime $from = null) {
+    /** @var array<int|string, \Biano\Heureka\ProductReviewSummary>  */
+    protected array $summary = [];
 
-		$fromPart = "";
-		if ($from) {
-			$fromPart = "&from=" . $from->format("Y-m-d H:i:s");
-		}
+    public function getNodeName(): string
+    {
+        return 'product';
+    }
 
-		if (preg_match('~^\w{32}$~', $key)) {
-			$this->setSourceAddress("https://www.heureka.cz/direct/dotaznik/export-product-review.php?key=" . $key . $fromPart);
-		} else {
-			$this->setSourceAddress($key);
-		}
+    /**
+     * @param string|null $key  Heuréka klíč (32 znaků) anebo celá adresa pro stahování importu
+     * @param \DateTimeImmutable|null $from Volitelně lze omezit, odkdy chceš recenze stáhnout. Max 6 měsíců zpátky. Funguje jen zadáš-li jako $key 32znakový klíč.
+     */
+    public function __construct(?string $key = null, ?DateTimeImmutable $from = null)
+    {
+        parent::__construct($key);
 
-	}
+        if ($key !== null) {
+            $this->setKey($key, $from);
+        }
+    }
 
-	/**
-	 * @ignore
-	 */
-	function processFile() {
-		$this->idResolverCache = array();
-		$this->summary = array();
-		return parent::processFile();
-	}
+    /**
+     * @param string $key  Heuréka klíč (32 znaků) anebo celá adresa pro stahování importu
+     * @param \DateTimeImmutable|null $from Volitelně lze omezit, odkdy chceš recenze stáhnout. Max 6 měsíců zpátky. Funguje jen zadáš-li jako $key 32znakový klíč.
+     */
+    public function setKey(string $key, ?DateTimeImmutable $from = null): void
+    {
+        $fromPart = '';
+        if ($from !== null) {
+            $fromPart = '&from=' . $from->format('Y-m-d H:i:s');
+        }
 
-	/**
-	 * @ignore
-	 */
-	public function processElement(\SimpleXMLElement $element, $index) {
+        if (preg_match('/^[a-f0-9]{32}$/i', $key) === 1) {
+            $this->setSourceAddress('https://www.heureka.cz/direct/dotaznik/export-product-review.php?key=' . $key . $fromPart);
+        } else {
+            $this->setSourceAddress($key);
+        }
+    }
 
-		$review = new ProductReview();
+    protected function processFile(): void
+    {
+        $this->idResolverCache = [];
+        $this->summary = [];
 
-		$reviewElement = $element->reviews->review[0];
+        parent::processFile();
+    }
 
-		$review->index = $index;
+    public function processElement(SimpleXMLElement $element, int $index): ProductReview
+    {
+        $reviewElement = $element->reviews->review[0];
 
-		$review->author = (string)$reviewElement->name;
-		$review->cons = (string)$reviewElement->cons;
-		$review->date = new \DateTime();
-		$review->date->setTimestamp((int)$reviewElement->unix_timestamp);
-		$review->orderId = (string)$element->order_id;
-		$review->productName = (string)$element->product_name;
-		$review->productUrl = (string)$element->url;
-		$review->productPrice = (float)$element->price;
-		$review->productEan = (string)$element->ean;
-		$review->productNumber = (string)$element->productno;
-		$review->pros = (string)$reviewElement->pros;
-		$review->ratingId = (int)$reviewElement->rating_id;
-		$review->summary = (string)$reviewElement->summary;
+        $review = new ProductReview(
+            $index,
+            (int) $reviewElement->rating_id,
+            (string) $reviewElement->name,
+            (new DateTimeImmutable())->setTimestamp((int) $reviewElement->unix_timestamp),
+            count($reviewElement->rating) > 0 ? (float) $reviewElement->rating : null,
+            (string) $reviewElement->pros,
+            (string) $reviewElement->cons,
+            (string) $reviewElement->summary,
+            null,
+            (string) $element->product_name,
+            (string) $element->url,
+            (float) $element->price,
+            (string) $element->ean,
+            (string) $element->productno,
+            (string) $element->order_id,
+        );
 
-		if (count($reviewElement->rating) > 0) {
-			$review->rating = (float)$reviewElement->rating;
-		} else {
-			$review->rating = null;
-		}
+        $prodId = $this->resolveId($review);
+        $review->setProductId($prodId);
 
-		$prodId = $this->resolveId($review);
-		$review->productId = $prodId;
+        if ($prodId !== null) {
+            $this->addReviewToSummary($prodId, $review);
+        }
 
-		if ($prodId) {
-			$this->addReviewToSummary($prodId, $review);
-		}
+        return $review;
+    }
 
-		return $review;
+    /**
+     * @return (callable(\Biano\Heureka\ProductReview): (int|string|null))|null
+     */
+    public function getIdResolver(): ?callable
+    {
+        return $this->idResolver;
+    }
 
-	}
+    /**
+     * Nastaví funkci odpovědnou za převedení informací o produktu na jeho jednoznačné ID.
+     * Tuto funkci je třeba implementovat, aby dobře fungovaly summary.
+     *
+     * @param (callable(\Biano\Heureka\ProductReview): (int|string|null))|null $idConverter
+     *
+     * @return $this
+     */
+    public function setIdResolver(?callable $idConverter): self
+    {
+        $this->idResolver = $idConverter;
 
-	/**
-	 * @return callable|null
-	 */
-	public function getIdResolver() {
-		return $this->idResolver;
-	}
+        return $this;
+    }
 
-	/**
-	 * Nastaví funkci odpovědnou za převedení informací o produktu na jeho jednoznačné ID.
-	 * Tuto funkci je třeba implementovat, aby dobře fungovaly summary.
-	 * @param callable|null $idConverter
-	 * @return ProductReviewsClient
-	 * @throws \InvalidArgumentException
-	 */
-	public function setIdResolver($idConverter) {
+    /**
+     * Mají se ukládat summary?
+     */
+    public function getSaveSummary(): bool
+    {
+        return $this->saveSummary;
+    }
 
-		if ($idConverter and !is_callable($idConverter)) {
-			throw new \InvalidArgumentException("Given callback is not callable.");
-		}
+    /**
+     * Mají se ukládat do summary i všechny recenze?
+     */
+    public function getSaveGroupedReviews(): bool
+    {
+        return $this->saveGroupedReviews;
+    }
 
-		$this->idResolver = $idConverter;
-		return $this;
-	}
+    /**
+     * Mají se průběžně ukládat summary? Umožní po proběhnutí importu
+     * pracovat s shrnujícími daty.
+     *
+     * @param bool $groupedReviews Mají se ukládat i všechny recenze?
+     *
+     * @return $this
+     */
+    public function setSaveSummary(bool $saveSummary, bool $groupedReviews = true): self
+    {
+        $this->saveSummary = $saveSummary;
+        $this->saveGroupedReviews = $groupedReviews;
 
-	/**
-	 * Mají se ukládat summary?
-	 * @return bool
-	 */
-	public function getSaveSummary() {
-		return $this->saveSummary;
-	}
+        return $this;
+    }
 
-	/**
-	 * Mají se ukládat do summary i všechny recenze?
-	 * @return bool
-	 */
-	public function getSaveGroupedReviews() {
-		return $this->saveGroupedReviews;
-	}
+    /**
+     * Vyhodnotí ID produktu
+     */
+    public function resolveId(ProductReview $review): mixed
+    {
+        if ($this->idResolver === null) {
+            return null;
+        }
 
-	/**
-	 * Mají se průběžně ukládat summary? Umožní po proběhnutí importu
-	 * pracovat s shrnujícími daty.
-	 *
-	 * @param bool $saveSummary
-	 * @param bool $groupedReviews Mají se ukládat i všechny recenze?
-	 *
-	 * @return ProductReviewsClient
-	 */
-	public function setSaveSummary($saveSummary, $groupedReviews = true) {
-		$this->saveSummary = $saveSummary ? true : false;
-		$this->saveGroupedReviews = $groupedReviews ? true : false;
-		return $this;
-	}
+        $str = $review->productName . '|' . $review->productNumber . '|' . $review->productPrice . '|' . $review->productUrl;
+        $hash = md5($str);
 
+        if (array_key_exists($hash, $this->idResolverCache)) {
+            return $this->idResolverCache[$hash];
+        }
 
-	/* ------------- ID resolving ------------ */
+        return $this->idResolverCache[$hash] = ($this->idResolver)($review);
+    }
 
-	protected $idResolverCache = array();
+    protected function addReviewToSummary(int|string $productId, ProductReview $review): void
+    {
+        if (!$this->saveSummary) {
+            return;
+        }
 
-	/**
-	 * Vyhodnotí ID produktu
-	 *
-	 * @param ProductReview $review
-	 * @return mixed|null
-	 */
-	public function resolveId(ProductReview $review) {
+        if (!isset($this->summary[$productId])) {
+            $summary = new ProductReviewSummary($productId);
+            $this->summary[$productId] = $summary;
+        }
 
-		if (!$this->idResolver) {
-			return null;
-		}
+        $summary = $this->summary[$productId];
 
-		$str = $review->productName . "|" . $review->productNumber . "|" . $review->productPrice . "|" . $review->productUrl;
-		$hash = md5($str);
+        $summary->reviewCount++;
 
-		if (array_key_exists($hash, $this->idResolverCache)) {
-			return $this->idResolverCache[$hash];
-		}
+        if ($review->rating !== null) {
+            $summary->ratingCount++;
+            $summary->totalStars += $review->rating;
+            $summary->averageRating = round($summary->totalStars / $summary->ratingCount, 1);
 
-		$resolvedId = call_user_func_array($this->idResolver, array($review));
-		$this->idResolverCache[$hash] = $resolvedId;
+            if ($summary->bestRating === 0.0 || $summary->bestRating < $review->rating) {
+                $summary->bestRating = $review->rating;
+            }
 
-		return $resolvedId;
+            if ($summary->worstRating === 0.0 || $summary->worstRating > $review->rating) {
+                $summary->worstRating = $review->rating;
+            }
+        }
 
-	}
+        if ($summary->newestReviewDate === null || $summary->newestReviewDate < $review->date) {
+            $summary->newestReviewDate = $review->date;
+        }
 
+        if ($summary->oldestReviewDate === null || $summary->oldestReviewDate > $review->date) {
+            $summary->oldestReviewDate = $review->date;
+        }
 
-	/* --------- Summary functions ---------- */
+        if ($this->saveGroupedReviews) {
+            $summary->reviews[] = $review;
+        }
+    }
 
-	protected $summary = array();
+    /**
+     * Vrátí pole ID všech produktů, které v datech byly.
+     *
+     * @return list<int|string>
+     */
+    public function getAllProductIds(): array
+    {
+        return array_keys($this->summary);
+    }
 
-	/**
-	 * @ignore
-	 */
-	protected function addReviewToSummary($productId, ProductReview $review) {
-		if (!$productId) {
-			return;
-		}
+    /**
+     * Vrát všechny summary jako pole.
+     *
+     * @return array<int|string, \Biano\Heureka\ProductReviewSummary>
+     */
+    public function getAllSummaries(): array
+    {
+        return $this->summary;
+    }
 
-		if (!$this->saveSummary) {
-			return;
-		}
+    /**
+     * Vrací summary pro konkrétní produkt, null když takový není nalezen.
+     */
+    public function getSummaryOfProduct(int|string $productId): ?ProductReviewSummary
+    {
+        return $this->summary[$productId] ?? null;
+    }
 
-		if (!isset($this->summary[$productId])) {
-
-			$summary = new ProductReviewSummary();
-			$summary->productId = $productId;
-			$this->summary[$productId] = $summary;
-
-		}
-
-		$summary = $this->summary[$productId];
-
-		$summary->reviewCount++;
-
-		if ($review->rating !== null) {
-			$summary->ratingCount++;
-			$summary->totalStars += $review->rating;
-			$summary->averageRating = round($summary->totalStars / $summary->ratingCount, 1);
-
-			if (!$summary->bestRating or $summary->bestRating < $review->rating) {
-				$summary->bestRating = $review->rating;
-			}
-			if (!$summary->worstRating or $summary->worstRating > $review->rating) {
-				$summary->worstRating = $review->rating;
-			}
-		}
-
-		if (!$summary->newestReviewDate or $summary->newestReviewDate < $review->date) {
-			$summary->newestReviewDate = $review->date;
-		}
-		if (!$summary->oldestReviewDate or $summary->oldestReviewDate > $review->date) {
-			$summary->oldestReviewDate = $review->date;
-		}
-
-		if ($this->saveGroupedReviews) {
-			$summary->reviews[] = $review;
-		}
-
-	}
-
-	/**
-	 * Vrátí pole ID všech produktů, které v datech byly.
-	 *
-	 * @return array
-	 */
-	function getAllProductIds() {
-		return array_keys( $this->summary );
-	}
-
-	/**
-	 * Vrát všechny summary jako pole.
-	 *
-	 * @return array of ProductReviewSummary
-	 */
-	function getAllSummaries() {
-		return $this->summary;
-	}
-
-	/**
-	 * Vrací summary pro konkrétní produkt, null když takový není nalezen.
-	 *
-	 * @param mixed $productId
-	 * @return ProductReviewSummary|null
-	 */
-	function getSummaryOfProduct($productId) {
-		return isset($this->summary[$productId]) ? $this->summary[$productId] : null;
-	}
-
-	/**
-	 * Vrátí všechny recenze daného produktu jako pole. Prázdné pole, nemá-li žádné recenze.
-	 *
-	 * @param mixed $productId
-	 * @return array of ProductReviewSummary
-	 */
-	function getReviewsOfProduct($productId) {
-		return isset($this->summary[$productId]) ? ($this->summary[$productId]->reviews) : array();
-	}
+    /**
+     * Vrátí všechny recenze daného produktu jako pole. Prázdné pole, nemá-li žádné recenze.
+     *
+     * @return list<\Biano\Heureka\ProductReview>
+     */
+    public function getReviewsOfProduct(int|string $productId): array
+    {
+        return isset($this->summary[$productId]) ? $this->summary[$productId]->reviews : [];
+    }
 
 }

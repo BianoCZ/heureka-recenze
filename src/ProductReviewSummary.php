@@ -1,82 +1,41 @@
 <?php
 
-namespace OndraKoupil\Heureka;
+declare(strict_types = 1);
+
+namespace Biano\Heureka;
+
+use DateTimeImmutable;
 
 /**
  * Shrnutí recenzí jednoho konkrétního produktu
  */
-class ProductReviewSummary {
+final class ProductReviewSummary
+{
 
-	/**
-	 * ID produktu
-	 *
-	 * @var mixed
-	 */
-	public $productId;
-
-	/**
-	 * Počet recenzí na tento produkt
-	 *
-	 * @var int
-	 */
-	public $reviewCount = 0;
-
-	/**
-	 * Počet hodnocení na tento produkt.
-	 * Počet hodnocení a počet recenzí nemusí nutně být totéž.
-	 *
-	 * @var int
-	 */
-	public $ratingCount = 0;
-
-	/**
-	 * Průměrné hodnocení na stupnici 0.5 až 5 hvězdiček
-	 *
-	 * @var float
-	 */
-	public $averageRating = 0;
-
-	/**
-	 * Celkový počet hvězdiček
-	 *
-	 * @var float
-	 */
-	public $totalStars = 0;
-
-	/**
-	 * Nejlepší hodnocení
-	 *
-	 * @var float
-	 */
-	public $bestRating = 0;
-
-
-	/**
-	 * Nejhorší hodnocení
-	 *
-	 * @var float
-	 */
-	public $worstRating = 0;
-
-	/**
-	 * Datum nejstarší recenze
-	 *
-	 * @var \DateTime
-	 */
-	public $oldestReviewDate = null;
-
-	/**
-	 * Datum nejmladší recenze
-	 *
-	 * @var \DateTime
-	 */
-	public $newestReviewDate = null;
-
-	/**
-	 * Jednotlivé recenze, které se tohoto produktu týkají
-	 *
-	 * @var array of ProductReview
-	 */
-	public $reviews = array();
+    /**
+     * @param int|string $productId        ID produktu
+     * @param int $reviewCount      Počet recenzí na tento produkt
+     * @param int $ratingCount      Počet hodnocení na tento produkt. Počet hodnocení a počet recenzí nemusí nutně být totéž.
+     * @param float $averageRating    Průměrné hodnocení na stupnici 0.5 až 5 hvězdiček
+     * @param float $totalStars       Celkový počet hvězdiček
+     * @param float $bestRating       Nejlepší hodnocení
+     * @param float $worstRating      Nejhorší hodnocení
+     * @param \DateTimeImmutable|null $oldestReviewDate Datum nejstarší recenze
+     * @param \DateTimeImmutable|null $newestReviewDate Datum nejmladší recenze
+     * @param list<\Biano\Heureka\ProductReview> $reviews          Jednotlivé recenze, které se tohoto produktu týkají
+     */
+    public function __construct(
+        public readonly int|string $productId,
+        public int $reviewCount = 0,
+        public int $ratingCount = 0,
+        public float $averageRating = 0.0,
+        public float $totalStars = 0.0,
+        public float $bestRating = 0.0,
+        public float $worstRating = 0.0,
+        public ?DateTimeImmutable $oldestReviewDate = null,
+        public ?DateTimeImmutable $newestReviewDate = null,
+        public array $reviews = [],
+    ) {
+    }
 
 }

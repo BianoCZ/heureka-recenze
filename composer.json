@@ -1,29 +1,65 @@
 {
-    "name": "ondrakoupil/heureka-recenze",
+    "name": "biano/heureka-recenze",
     "description": "Knihovna pro snadný import recenzí e-shopu a produktů z Heuréka.cz",
     "type": "library",
-    "homepage": "https://github.com/ondrakoupil/heureka-recenze",
+    "homepage": "https://github.com/bianocz/heureka-recenze",
     "keywords": ["e-shop", "merchant", "commerce", "heureka.cz", "feedback", "reviews", "ratings"],
     "license": "MIT",
     "authors": [
         {
             "name": "Ondrej Koupil",
             "email": "koupil@optimato.cz"
+        },
+        {
+            "name": "Biano team",
+            "homepage": "https://github.com/bianocz/heureka-recenze/graphs/contributors"
         }
     ],
-    "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
-            "OndraKoupil\\Heureka\\": "src/"
+            "Biano\\Heureka\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Biano\\Heureka\\": "tests/"
         }
     },
     "require": {
-		"ext-curl": "*",
-        "php": ">=5.3.1"
+        "php": ">=8.3",
+        "ext-curl": "*",
+        "ext-simplexml": "*",
+        "ext-xmlreader": "*"
     },
     "require-dev": {
-        "nette/tester": "dev-master",
-        "ondrakoupil/tools": "~0.0.6",
-        "ondrakoupil/testing-utils": "~0.0.7"
+        "biano/coding-standard": "^4.4",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^11.5",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "shipmonk/composer-dependency-analyser": "^1.8"
+    },
+    "config": {
+        "preferred-install": {
+            "*": "dist"
+        },
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "scripts": {
+        "cs": "phpcs",
+        "phpstan": "phpstan analyse",
+        "deps": "composer-dependency-analyser",
+        "test": "phpunit",
+        "check": [
+            "@cs",
+            "@phpstan",
+            "@deps",
+            "@test"
+        ]
     }
 }

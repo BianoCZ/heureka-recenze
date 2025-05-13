@@ -1,120 +1,49 @@
 <?php
 
-namespace OndraKoupil\Heureka;
+declare(strict_types = 1);
+
+namespace Biano\Heureka;
+
+use DateTimeImmutable;
 
 /**
  * Recenze e-shopu
  */
-class EshopReview {
+final readonly class EshopReview
+{
 
-	/**
-	 * Číslo recenze v rámci souboru, začíná se od 0
-	 *
-	 * @var number
-	 */
-	public $index;
-
-	/**
-	 * Jedinečné ID recenze (dané Heurékou)
-	 *
-	 * @var number
-	 */
-	public $ratingId;
-
-	/**
-	 * Jméno autora. Empty string = anonymní.
-	 *
-	 * @var string
-	 */
-	public $author;
-
-	/**
-	 * Datum a čas napsání recenze
-	 *
-	 * @var \DateTime
-	 */
-	public $date;
-
-	/**
-	 * Hodnocení celkové - na stupnici 0.5 až 5 hvězdiček
-	 *
-	 * @var number|null
-	 */
-	public $ratingTotal;
-
-	/**
-	 * Hodnocení délky dodací lhůty - na stupnici 0.5 až 5 hvězdiček
-	 *
-	 * @var number|null
-	 */
-	public $ratingDelivery;
-
-	/**
-	 * Hodnocení kvality dopravy zboží - na stupnici 0.5 až 5 hvězdiček
-	 *
-	 * @var number|null
-	 */
-	public $ratingTransportQuality;
-
-	/**
-	 * Hodnocení použitelnosti a přehlednosti e-shopu
-	 * na stupnici 0.5 až 5 hvězdiček
-	 *
-	 * @var number|null
-	 */
-	public $ratingWebUsability;
-
-	/**
-	 * Hodnocení komunikace ze strany e-shopu
-	 * na stupnici 0.5 až 5 hvězdiček
-	 *
-	 * @var number|null
-	 */
-	public $ratingCommunication;
-
-	/**
-	 * Hlavní výhody e-shopu.
-	 * Víceřádkový řetězec, zpravidla co řádek, to jeden bod
-	 *
-	 * @var string
-	 */
-	public $pros;
-
-	/**
-	 * Hlavní nevýhody e-shopu.
-	 * Víceřádkový řetězec, zpravidla co řádek, to jeden bod
-	 *
-	 * @var string
-	 */
-	public $cons;
-
-	/**
-	 * Celkové shrnutí názoru zákazníka na obchod
-	 *
-	 * @var string
-	 */
-	public $summary;
-
-
-	/**
-	 * Reakce provozovatele e-shopu na recenzi zákazníka
-	 *
-	 * @var string
-	 */
-	public $reaction;
-
-	/**
-	 * Číslo objednávky, na níž zákazník psal recenzi
-	 *
-	 * @var string
-	 */
-	public $orderId;
-
-	/**
-	 * @return array
-	 */
-	function getAsArray() {
-		return get_object_vars($this);
-	}
+    /**
+     * @param int $index                  Číslo recenze v rámci souboru, začíná se od 0
+     * @param int $ratingId               Jedinečné ID recenze (dané Heurékou)
+     * @param string $author                 Jméno autora. Empty string = anonymní.
+     * @param \DateTimeImmutable $date                   Datum a čas napsání recenze
+     * @param float|null $ratingTotal            Hodnocení celkové - na stupnici 0.5 až 5 hvězdiček
+     * @param float|null $ratingDelivery         Hodnocení délky dodací lhůty - na stupnici 0.5 až 5 hvězdiček
+     * @param float|null $ratingTransportQuality Hodnocení kvality dopravy zboží - na stupnici 0.5 až 5 hvězdiček
+     * @param float|null $ratingWebUsability     Hodnocení použitelnosti a přehlednosti e-shopu na stupnici 0.5 až 5 hvězdiček
+     * @param float|null $ratingCommunication    Hodnocení komunikace ze strany e-shopu na stupnici 0.5 až 5 hvězdiček
+     * @param string $pros                   Hlavní výhody e-shopu. Víceřádkový řetězec, zpravidla co řádek, to jeden bod
+     * @param string $cons                   Hlavní nevýhody e-shopu. Víceřádkový řetězec, zpravidla co řádek, to jeden bod
+     * @param string $summary                Celkové shrnutí názoru zákazníka na obchod
+     * @param string $reaction               Reakce provozovatele e-shopu na recenzi zákazníka
+     * @param string $orderId                Číslo objednávky, na níž zákazník psal recenzi
+     */
+    public function __construct(
+        public int $index,
+        public int $ratingId,
+        public string $author,
+        public DateTimeImmutable $date,
+        public ?float $ratingTotal,
+        public ?float $ratingDelivery,
+        public ?float $ratingTransportQuality,
+        public ?float $ratingWebUsability,
+        public ?float $ratingCommunication,
+        public string $pros,
+        public string $cons,
+        public string $summary,
+        public string $reaction,
+        public string $orderId,
+    ) {
+    }
 
 }

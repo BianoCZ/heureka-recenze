@@ -1,81 +1,54 @@
 <?php
 
-namespace OndraKoupil\Heureka;
+declare(strict_types = 1);
+
+namespace Biano\Heureka;
+
+use DateTimeImmutable;
+use SimpleXMLElement;
+use function count;
+use function preg_match;
 
 /**
  * Klient umožňující stahovat recenze e-shopu jako takového
+ *
+ * @extends \Biano\Heureka\BaseClient<\Biano\Heureka\EshopReview>
  */
-class EshopReviewsClient extends BaseClient {
+final class EshopReviewsClient extends BaseClient
+{
 
-	function getNodeName() {
-		return "review";
-	}
+    public function getNodeName(): string
+    {
+        return 'review';
+    }
 
-	public function setKey($key) {
+    public function setKey(string $key, ?DateTimeImmutable $from = null): void
+    {
+        if (preg_match('/^[a-f0-9]{32}$/i', $key) === 1) {
+            $this->setSourceAddress('https://www.heureka.cz/direct/dotaznik/export-review.php?key=' . $key);
+        } else {
+            $this->setSourceAddress($key);
+        }
+    }
 
-		if (preg_match('~^\w{32}$~', $key)) {
-			$this->setSourceAddress("https://www.heureka.cz/direct/dotaznik/export-review.php?key=" . $key);
-		} else {
-			$this->setSourceAddress($key);
-		}
-
-	}
-
-	/**
-	 * @ignore
-	 */
-	public function processElement(\SimpleXMLElement $element, $index) {
-
-		$review = new EshopReview();
-
-		$review->index = $index;
-		$review->author = (string)$element->name;
-		$review->cons = (string)$element->cons;
-		$review->date = new \DateTime();
-		$review->date->setTimestamp((int)$element->unix_timestamp);
-		$review->orderId = (string)$element->order_id;
-		$review->pros = (string)$element->pros;
-
-		if (count($element->communication)) {
-			$review->ratingCommunication = (float)$element->communication;
-		} else {
-			$review->ratingCommunication = null;
-		}
-
-		if (count($element->delivery_time)) {
-			$review->ratingDelivery = (float)$element->delivery_time;
-		} else {
-			$review->ratingDelivery = null;
-		}
-
-		if (count($element->total_rating)) {
-			$review->ratingTotal = (float)$element->total_rating;
-		} else {
-			$review->ratingTotal = null;
-		}
-
-		if (count($element->transport_quality)) {
-			$review->ratingTransportQuality = (float)$element->transport_quality;
-		} else {
-			$review->ratingTransportQuality = null;
-		}
-
-		if (count($element->web_usability)) {
-			$review->ratingWebUsability = (float)$element->web_usability;
-		} else {
-			$review->ratingWebUsability = null;
-		}
-
-		$review->ratingId = (int)$element->rating_id;
-		$review->reaction = (string)$element->reaction;
-		$review->summary = (string)$element->summary;
-
-		return $review;
-
-	}
-
-
-
-
+    public function processElement(SimpleXMLElement $element, int $index): EshopReview
+    {
+        return new EshopReview(
+            $index,
+            (int) $element->rating_id,
+            (string) $element->name,
+            (new DateTimeImmutable())->setTimestamp((int) $element->unix_timestamp),
+            count($element->total_rating) > 0 ? (float) $element->total_rating : null,
+            count($element->delivery_time) > 0 ? (float) $element->delivery_time : null,
+            count($element->transport_quality) > 0 ? (float) $element->transport_quality : null,
+            count($element->web_usability) > 0 ? (float) $element->web_usability : null,
+            count($element->communication) > 0 ? (float) $element->communication : null,
+            (string) $element->pros,
+            (string) $element->cons,
+            (string) $element->summary,
+            (string) $element->reaction,
+            (string) $element->order_id,
+        );
+    }
 
 }
