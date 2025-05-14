@@ -1,264 +1,292 @@
 <?php
 
-namespace OndraKoupil\Heureka;
+declare(strict_types = 1);
+
+namespace Biano\Heureka;
+
+use DateTimeImmutable;
+use RuntimeException;
+use SimpleXMLElement;
+use XMLReader;
+use function curl_close;
+use function curl_exec;
+use function curl_init;
+use function curl_setopt;
+use function fclose;
+use function file_exists;
+use function fopen;
+use function is_readable;
+use function is_string;
+use function simplexml_load_string;
+use function unlink;
+use const CURLOPT_CONNECTTIMEOUT;
+use const CURLOPT_FILE;
+use const CURLOPT_FOLLOWLOCATION;
+use const CURLOPT_RETURNTRANSFER;
+use const CURLOPT_TIMEOUT;
 
 /**
  * Společný základ pro obě třídy *Client
+ *
+ * @template T
  */
-abstract class BaseClient {
+abstract class BaseClient
+{
 
-	protected $sourceAddress;
+    protected ?string $sourceAddress = null;
 
-	protected $tempFile;
-	protected $downloadFinished = false;
-	protected $deleteTempFileAfterParsing = true;
+    protected ?string $tempFile = null;
 
-	protected $callback = null;
+    protected bool $downloadFinished = false;
 
-	protected $xml = null;
+    protected bool $deleteTempFileAfterParsing = true;
 
+    /**
+     * @var (callable(T): void)|null
+     */
+    protected $callback = null;
 
-	/* ------- Getters, Setters ------- */
+    protected ?string $xml = null;
 
-	abstract function setKey($key);
+    abstract public function setKey(string $key, ?DateTimeImmutable $from = null): void;
 
-	/**
-	 * Konstruktor umožňuje rovnou nastavit klíč nebo adresu.
-	 *
-	 * @param string $key
-	 */
-	function __construct($key = null) {
-		if ($key) {
-			$this->setKey($key);
-		}
-	}
+    /**
+     * Konstruktor umožňuje rovnou nastavit klíč nebo adresu.
+     */
+    public function __construct(?string $key = null)
+    {
+        if ($key !== null) {
+            $this->setKey($key);
+        }
+    }
 
-	/**
-	 * Adresa, z níž se má stahovat XML feed s recenzemi.
-	 *
-	 * @return string
-	 */
-	public function getSourceAddress() {
-		return $this->sourceAddress;
-	}
+    /**
+     * Adresa, z níž se má stahovat XML feed s recenzemi.
+     */
+    public function getSourceAddress(): ?string
+    {
+        return $this->sourceAddress;
+    }
 
-	/**
-	 * Adresa, z níž se má stahovat XML feed s recenzemi.
-	 *
-	 * @param string $sourceAddress
-	 * @return BaseClient
-	 */
+    /**
+     * Adresa, z níž se má stahovat XML feed s recenzemi.
+     *
+     * @return $this
+     */
+    public function setSourceAddress(?string $sourceAddress): static
+    {
+        $this->sourceAddress = $sourceAddress;
 
-	public function setSourceAddress($sourceAddress) {
-		$this->sourceAddress = $sourceAddress;
-		return $this;
-	}
+        return $this;
+    }
 
-	/**
-	 * Dočasný soubor
-	 *
-	 * @return string
-	 */
-	public function getTempFile() {
-		return $this->tempFile;
-	}
+    /**
+     * Dočasný soubor
+     */
+    public function getTempFile(): ?string
+    {
+        return $this->tempFile;
+    }
 
-	/**
-	 * Má se dočasný soubor po parsování automaticky vymazat?
-	 *
-	 * @return bool
-	 */
-	public function getDeleteTempFileAfterParsing() {
-		return $this->deleteTempFileAfterParsing;
-	}
+    /**
+     * Má se dočasný soubor po parsování automaticky vymazat?
+     */
+    public function getDeleteTempFileAfterParsing(): bool
+    {
+        return $this->deleteTempFileAfterParsing;
+    }
 
-	/**
-	 * Nastaví dočasný soubor, kam se celý XML feed stáhne.
-	 * Použití dočasného souboru redukuje nároky na paměť.
-	 *
-	 * @param string $tempFile
-	 * @param bool $deleteAfterParsing Smazat dočasný soubor automaticky?
-	 * @return BaseClient
-	 */
-	public function setTempFile($tempFile, $deleteAfterParsing = true) {
-		$this->tempFile = $tempFile;
-		$this->deleteTempFileAfterParsing = $deleteAfterParsing ? true : false;
-		$this->downloadFinished = false;
-		return $this;
-	}
+    /**
+     * Nastaví dočasný soubor, kam se celý XML feed stáhne.
+     * Použití dočasného souboru redukuje nároky na paměť.
+     *
+     * @param bool $deleteAfterParsing Smazat dočasný soubor automaticky?
+     *
+     * @return $this
+     */
+    public function setTempFile(?string $tempFile, bool $deleteAfterParsing = true): static
+    {
+        $this->tempFile = $tempFile;
+        $this->deleteTempFileAfterParsing = $deleteAfterParsing;
+        $this->downloadFinished = false;
 
-	/**
-	 * @return callable
-	 */
-	public function getCallback() {
-		return $this->callback;
-	}
+        return $this;
+    }
 
-	/**
-	 * Nastavení callbacku, který se spustí pro každou recenzi.
-	 *
-	 * @param callable $callback function($recenze) { ... }, kde $recenze je EshopReview nebo ProductReview (podle typu *Client třídy)
-	 * @return BaseClient
-	 * @throws \InvalidArgumentException
-	 */
-	public function setCallback($callback) {
-		if ($callback and !is_callable($callback)) {
-			throw new \InvalidArgumentException("Given callback is not callable.");
-		}
-		$this->callback = $callback;
-		return $this;
-	}
+    /**
+     * @return (callable(T): void)|null
+     */
+    public function getCallback(): ?callable
+    {
+        return $this->callback;
+    }
 
+    /**
+     * Nastavení callbacku, který se spustí pro každou recenzi.
+     *
+     * @param callable(T): void $callback
+     *
+     * @return $this
+     */
+    public function setCallback(callable $callback): static
+    {
+        $this->callback = $callback;
 
+        return $this;
+    }
 
-	/* ------- Internals ------- */
+    abstract public function getNodeName(): string;
 
-	abstract function getNodeName();
+    /**
+     * @return T
+     */
+    abstract protected function processElement(SimpleXMLElement $element, int $index): mixed;
 
-	abstract function processElement(\SimpleXMLElement $element, $index);
+    protected function downloadFile(): void
+    {
+        if ($this->sourceAddress === null) {
+            throw new RuntimeException('Source address has not been set, can not download file.');
+        }
 
-	protected function downloadFile() {
+        $c = curl_init($this->sourceAddress);
 
-		if (!$this->sourceAddress) {
-			throw new \RuntimeException("Source address has not been set, can not download file.");
-		}
+        curl_setopt($c, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($c, CURLOPT_TIMEOUT, 30);
+        curl_setopt($c, CURLOPT_CONNECTTIMEOUT, 30);
 
-		$c = curl_init($this->sourceAddress);
+        if ($this->tempFile !== null) {
+            $fh = fopen($this->tempFile, 'w');
+            if ($fh === false) {
+                throw new RuntimeException('Temporary file "' . $this->tempFile . '" could not be open for writing.');
+            }
 
-		curl_setopt($c, CURLOPT_FOLLOWLOCATION, true);
-		curl_setopt($c, CURLOPT_TIMEOUT, 30);
-		curl_setopt($c, CURLOPT_CONNECTTIMEOUT, 30);
+            curl_setopt($c, CURLOPT_FILE, $fh);
 
-		if ($this->tempFile) {
+            $downloadSuccess = curl_exec($c);
+            if ($downloadSuccess === false) {
+                throw new RuntimeException('File could not be downloaded from "' . $this->sourceAddress . '"');
+            }
 
-			$fh = fopen($this->tempFile, "w");
-			if (!$fh) {
-				throw new \RuntimeException("Temporary file \"$this->tempFile\" could not be open for writing.");
-			}
-			curl_setopt($c, CURLOPT_FILE, $fh);
+            $this->downloadFinished = true;
+            curl_close($c);
+            fclose($fh);
+        } else {
+            curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
+            $xml = curl_exec($c);
 
-			$downloadSuccess = curl_exec($c);
-			if (!$downloadSuccess) {
-				throw new \RuntimeException("File could not be downloaded from \"" . $this->sourceAddress . "\"");
-			}
+            if (!is_string($xml)) {
+                throw new RuntimeException('File could not be downloaded from "' . $this->sourceAddress . '"');
+            }
 
-			$this->downloadFinished = true;
-			curl_close($c);
-			fclose($fh);
+            $this->xml = $xml;
 
-		} else {
+            $this->downloadFinished = true;
+            curl_close($c);
+        }
+    }
 
-			curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
-			$this->xml = curl_exec($c);
+    protected function processFile(): void
+    {
+        if (!$this->downloadFinished) {
+            throw new RuntimeException('File has not been downloaded yet.');
+        }
 
-			if ($this->xml === false) {
-				throw new \RuntimeException("File could not be downloaded from \"" . $this->sourceAddress . "\"");
-			}
+        $mainNodeName = $this->getNodeName();
 
-			$this->downloadFinished = true;
-			curl_close($c);
+        if ($this->tempFile !== null) {
+            $xmlReader = XMLReader::open($this->tempFile);
+        } else {
+            $xmlReader = XMLReader::XML((string) $this->xml);
+        }
 
-		}
+        if (!$xmlReader instanceof XMLReader) {
+            throw new RuntimeException('Error opening file.');
+        }
 
-	}
+        $elementIndex = 0;
 
-	protected function processFile() {
+        while (true) {
+            $remainsAnything = $xmlReader->read();
+            if (!$remainsAnything) {
+                break;
+            }
 
-		if (!$this->downloadFinished) {
-			throw new \RuntimeException("File has not been downloaded yet.");
-		}
+            $nodeName = $xmlReader->name;
+            $nodeType = $xmlReader->nodeType;
 
-		$xmlReader = new \XMLReader();
-		$mainNodeName = $this->getNodeName();
+            if ($nodeType !== XMLReader::ELEMENT || $nodeName !== $mainNodeName) {
+                continue;
+            }
 
-		if ($this->tempFile) {
-			$xmlReader->open($this->tempFile);
-		} else {
-			$xmlReader->XML($this->xml);
-		}
+            $nodeAsString = $xmlReader->readOuterXml();
+            if ($nodeAsString === '') {
+                continue;
+            }
 
-		$elementIndex = 0;
+            $simpleXmlNode = simplexml_load_string($nodeAsString);
+            if ($simpleXmlNode === false) {
+                continue;
+            }
 
-		while (true) {
+            $review = $this->processElement($simpleXmlNode, $elementIndex);
 
-			$remainsAnything = $xmlReader->read();
-			if (!$remainsAnything) break;
+            if ($this->callback !== null) {
+                ($this->callback)($review);
+            }
 
-			$nodeName = $xmlReader->name;
-			$nodeType = $xmlReader->nodeType;
+            $elementIndex++;
+        }
+    }
 
-			if ($nodeType !== \XMLReader::ELEMENT or $nodeName !== $mainNodeName) {
-				continue;
-			}
+    private function deleteTempFileIfNeeded(): void
+    {
+        if ($this->tempFile !== null && file_exists($this->tempFile) && $this->deleteTempFileAfterParsing) {
+            $deleted = unlink($this->tempFile);
+            if (!$deleted) {
+                throw new RuntimeException('Could not clean up the temp file "' . $this->tempFile . '" - unlink() failed');
+            }
+        }
+    }
 
-			$nodeAsString = $xmlReader->readOuterXml();
-			if (!$nodeAsString) {
-				continue;
-			}
+    /**
+     * Umožní použít vlastní soubor (již stažený dříve) a ne ten z Heuréky.
+     */
+    public function useFile(string $filename): void
+    {
+        if (!file_exists($filename) || !is_readable($filename)) {
+            throw new RuntimeException('File "' . $filename . '" is not readable.');
+        }
 
-			$simpleXmlNode = simplexml_load_string($nodeAsString);
-			if (!$simpleXmlNode) {
-				continue;
-			}
+        $this->tempFile = $filename;
+        $this->downloadFinished = true;
+        $this->deleteTempFileAfterParsing = false;
+    }
 
-			$review = $this->processElement($simpleXmlNode, $elementIndex);
+    /**
+     * Spustit import!
+     */
+    public function run(): void
+    {
+        if (!$this->downloadFinished) {
+            $this->downloadFile();
+        }
 
-			if ($this->callback) {
-				call_user_func_array($this->callback, array($review));
-			}
+        $this->processFile();
+        $this->deleteTempFileIfNeeded();
+    }
 
-			$elementIndex++;
-		}
+    /**
+     * Stáhnout soubor, ale dál ho nezpracovávat.
+     *
+     * @param string|null $file Kam se má stáhnout? Null = použít nastavený dočasný soubor z setTempFile().
+     */
+    public function download(?string $file = null): void
+    {
+        if ($file !== null) {
+            $this->setTempFile($file);
+        }
 
-	}
-
-	function deleteTempFileIfNeeded() {
-		if ($this->tempFile and file_exists($this->tempFile) and $this->deleteTempFileAfterParsing) {
-			$deleted = unlink($this->tempFile);
-			if (!$deleted) {
-				throw new \RuntimeException("Could not clean up the temp file \"$this->tempFile\" - unlink() failed");
-			}
-		}
-	}
-
-
-	/* ------- Public API ------ */
-
-	/**
-	 * Umožní použít vlastní soubor (již stažený dříve) a ne ten z Heuréky.
-	 * @param string $filename
-	 * @throws \RuntimeException
-	 */
-	public function useFile($filename) {
-		if (!file_exists($filename) or !is_readable($filename)) {
-			throw new \RuntimeException("File \"$filename\" is not readable.");
-		}
-		$this->tempFile = $filename;
-		$this->downloadFinished = true;
-		$this->deleteTempFileAfterParsing = false;
-	}
-
-	/**
-	 * Spustit import!
-	 */
-	public function run() {
-		if (!$this->downloadFinished) {
-			$this->downloadFile();
-		}
-		$this->processFile();
-		$this->deleteTempFileIfNeeded();
-	}
-
-	/**
-	 * Stáhnout soubor, ale dál ho nezpracovávat.
-	 * @param string $file Kam se má stáhnout? Null = použít nastavený dočasný soubor z setTempFile().
-	 */
-	public function download($file = null) {
-		if ($file) {
-			$this->setTempFile($file);
-		}
-
-		$this->downloadFile();
-	}
+        $this->downloadFile();
+    }
 
 }

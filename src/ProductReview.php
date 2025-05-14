@@ -1,130 +1,61 @@
 <?php
 
-namespace OndraKoupil\Heureka;
+declare(strict_types = 1);
+
+namespace Biano\Heureka;
+
+use DateTimeImmutable;
 
 /**
  * Recenze produktu
  */
-class ProductReview {
+final class ProductReview
+{
 
-	/**
-	 * Číslo recenze v rámci souboru, začíná se od 0
-	 *
-	 * @var number
-	 */
-	public $index;
+    /**
+     * @param int $index         Číslo recenze v rámci souboru, začíná se od 0
+     * @param int $ratingId      Jedinečné ID recenze (dané Heurékou)
+     * @param string $author        Jméno autora. Empty string = anonymní.
+     * @param \DateTimeImmutable $date          Datum a čas napsání recenze
+     * @param float|null $rating        Hodnocení produktu na stupnici od 0.5 do 5.
+     * @param string $pros          Hlavní výhody produktu. Víceřádkový řetězec, zpravidla co řádek, to jeden bod
+     * @param string $cons          Hlavní nevýhody produktu. Víceřádkový řetězec, zpravidla co řádek, to jeden bod
+     * @param string $summary       Celkové shrnutí názoru zákazníka na produkt
+     * @param int|string|null $productId     ID hodnoceného produktu dle e-shopu. Nepochází z Heuréky, jde o výstup z IdResolver funkce, pokud není definována, je vždy null.
+     * @param string $productName   Název produktu
+     * @param string $productUrl    URL produktu
+     * @param float $productPrice  Cena produktu (bez DPH)
+     * @param string $productEan    EAN produktu
+     * @param string $productNumber Číslo produktu
+     * @param string $orderId       Číslo objednávky, na níž zákazník psal recenzi
+     */
+    public function __construct(
+        public readonly int $index,
+        public readonly int $ratingId,
+        public readonly string $author,
+        public readonly DateTimeImmutable $date,
+        public readonly ?float $rating,
+        public readonly string $pros,
+        public readonly string $cons,
+        public readonly string $summary,
+        private int|string|null $productId,
+        public readonly string $productName,
+        public readonly string $productUrl,
+        public readonly float $productPrice,
+        public readonly string $productEan,
+        public readonly string $productNumber,
+        public readonly string $orderId,
+    ) {
+    }
 
-	/**
-	 * Jedinečné ID recenze (dané Heurékou)
-	 *
-	 * @var number
-	 */
-	public $ratingId;
+    public function getProductId(): int|string|null
+    {
+        return $this->productId;
+    }
 
-	/**
-	 * Jméno autora. Empty string = anonymní.
-	 *
-	 * @var string
-	 */
-	public $author;
-
-	/**
-	 * Datum a čas napsání recenze
-	 *
-	 * @var \DateTime
-	 */
-	public $date;
-
-	/**
-	 * Hodnocení produktu na stupnici od 0.5 do 5.
-	 *
-	 * @var number|null
-	 */
-	public $rating;
-
-	/**
-	 * Hlavní výhody produktu
-	 * Víceřádkový řetězec, zpravidla co řádek, to jeden bod
-	 *
-	 * @var string
-	 */
-	public $pros;
-
-	/**
-	 * Hlavní nevýhody produktu
-	 * Víceřádkový řetězec, zpravidla co řádek, to jeden bod
-	 *
-	 * @var string
-	 */
-	public $cons;
-
-	/**
-	 * Celkové shrnutí názoru zákazníka na produkt
-	 *
-	 * @var string
-	 */
-	public $summary;
-
-	/**
-	 * ID hodnoceného produktu dle e-shopu.
-	 *
-	 * Nepochází z Heuréky, jde o výstup z IdResolver funkce, pokud není definována,
-	 * je vždy null.
-	 *
-	 * @var mixed|null
-	 * @see Heureka::setIdResolver
-	 */
-	public $productId;
-
-	/**
-	 * Název produktu
-	 *
-	 * @var string
-	 */
-	public $productName;
-
-	/**
-	 * URL produktu
-	 *
-	 * @var string
-	 */
-	public $productUrl;
-
-	/**
-	 * Cena produktu (bez DPH)
-	 *
-	 * @var number
-	 */
-	public $productPrice;
-
-	/**
-	 * EAN produktu
-	 *
-	 * @var string
-	 */
-	public $productEan;
-
-	/**
-	 * Číslo produktu
-	 *
-	 * @var string
-	 */
-	public $productNumber;
-
-	/**
-	 * Číslo objednávky, na níž zákazník psal recenzi
-	 *
-	 * @var string
-	 */
-	public $orderId;
-
-	/**
-	 * @return array
-	 */
-	function getAsArray() {
-		return get_object_vars($this);
-	}
-
+    public function setProductId(int|string|null $productId): void
+    {
+        $this->productId = $productId;
+    }
 
 }
-
