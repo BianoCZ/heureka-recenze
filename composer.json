@@ -1,6 +1,6 @@
 {
     "name": "biano/heureka-recenze",
-    "description": "Knihovna pro snadný import recenzí e-shopu a produktů z Heuréka.cz",
+    "description": "Easy reviews import from Heureka.cz.",
     "type": "library",
     "homepage": "https://github.com/bianocz/heureka-recenze",
     "keywords": ["e-shop", "merchant", "commerce", "heureka.cz", "feedback", "reviews", "ratings"],
@@ -26,18 +26,23 @@
         }
     },
     "require": {
-        "php": ">=8.3",
-        "ext-curl": "*",
+        "php": ">=8.4",
         "ext-simplexml": "*",
-        "ext-xmlreader": "*"
+        "ext-xmlreader": "*",
+        "guzzlehttp/psr7": "^2.7",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.1",
+        "psr/http-message": "^2.0"
     },
     "require-dev": {
         "biano/coding-standard": "^4.4",
-        "phpstan/phpstan": "^2.1",
+        "guzzlehttp/guzzle": "^7.9",
         "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-deprecation-rules": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^11.5",
-        "phpstan/phpstan-phpunit": "^2.0",
         "shipmonk/composer-dependency-analyser": "^1.8"
     },
     "config": {
@@ -54,12 +59,12 @@
         "cs": "phpcs",
         "phpstan": "phpstan analyse",
         "deps": "composer-dependency-analyser",
-        "test": "phpunit",
+        "tests": "phpunit",
         "check": [
             "@cs",
             "@phpstan",
             "@deps",
-            "@test"
+            "@tests"
         ]
     }
 }

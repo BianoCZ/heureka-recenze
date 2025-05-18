@@ -3,7 +3,5 @@
     <arg value="sp"/>
     <file>src</file>
     <file>tests</file>
-    <rule ref="BianoCodingStandard">
-        <exclude name="Squiz.NamingConventions.ValidVariableName.MemberNotCamelCaps"/>
-    </rule>
+    <rule ref="BianoCodingStandard"/>
 </ruleset>
