@@ -8,7 +8,6 @@ use DateTimeImmutable;
 use RuntimeException;
 use SimpleXMLElement;
 use XMLReader;
-use function curl_close;
 use function curl_exec;
 use function curl_init;
 use function curl_setopt;
@@ -168,7 +167,6 @@ abstract class BaseClient
             }
 
             $this->downloadFinished = true;
-            curl_close($c);
             fclose($fh);
         } else {
             curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
@@ -181,7 +179,6 @@ abstract class BaseClient
             $this->xml = $xml;
 
             $this->downloadFinished = true;
-            curl_close($c);
         }
     }
 
